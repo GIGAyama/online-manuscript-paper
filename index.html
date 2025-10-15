@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <title>オンライン原稿用紙</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      html, body { height: 100%; overflow: hidden; }
+      
+      /* ルビのスタイル調整 */
+      ruby rt { font-size: 0.5em; font-weight: normal; }
+
+      /* カスタムスタイル */
+      .genko-cell { 
+        font-family: 'MS Mincho', 'Hiragio Mincho ProN', serif;
+        writing-mode: vertical-rl; text-orientation: upright;
+        -webkit-writing-mode: vertical-rl; -webkit-text-orientation: upright;
+        flex-shrink: 0; /* Prevent cells from shrinking */
+      }
+      .genko-line::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background-color: #f0f0f0;
+        transform: translateX(-50%);
+        z-index: 0;
+      }
+       .genko-cell > span, .genko-cell > div > span { position: relative; z-index: 1; }
+       
+      /* トースト通知のアニメーション */
+      .toast { animation: toast-in-right 0.5s, toast-out-right 0.5s 2.5s; }
+      @keyframes toast-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+      @keyframes toast-out-right { from { transform: translateX(0); } to { transform: translateX(100%); } }
+
+      /* ▼▼▼【BUG FIX】印刷と画面表示のスタイルを分離▼▼▼ */
+      @media screen {
+        #print-render-area {
+          display: none;
+        }
+      }
+
+      /* 印刷時用のスタイル */
+      @media print {
+        body * { visibility: hidden; }
+        #print-render-area, #print-render-area * { visibility: visible; }
+        #print-render-area {
+          display: block; /* 印刷時には表示を強制 */
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+        @page {
+          size: A4 landscape;
+          margin: 10mm;
+        }
+        .print-page {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: row-reverse;
+          justify-content: flex-start;
+          align-items: flex-start;
+          page-break-after: always;
+          box-sizing: border-box;
+        }
+      }
+      /* ▲▲▲【BUG FIX】▲▲▲ */
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 flex flex-col h-screen">
+    
+    <!-- ヘッダー -->
+    <header class="bg-white shadow-md p-3 flex-shrink-0 z-10">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold text-gray-700">オンライン<ruby>原<rt>げん</rt>稿<rt>こう</rt>用<rt>よう</rt>紙<rt>し</rt></ruby></h1>
+            <div id="character-count" class="text-base md:text-lg font-semibold bg-blue-100 text-blue-800 px-3 py-1 rounded-full">0 <ruby>文<rt>も</rt>字<rt>じ</rt></ruby></div>
+        </div>
+    </header>
+
+    <div class="flex-grow container mx-auto flex overflow-hidden p-4 gap-4">
+        <!-- 左パネル：操作部 -->
+        <div class="w-1/3 flex flex-col gap-4 flex-shrink-0">
+            <div class="bg-white rounded-lg shadow p-4 flex flex-col gap-3">
+                <input type="text" id="title" placeholder="課題（かだい）" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="class" placeholder="クラス" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="name" placeholder="氏名（しめい）" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+            </div>
+            <textarea id="content" placeholder="ここに作文（さくぶん）を書いてください..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 flex-grow shadow"></textarea>
+            <div class="bg-white rounded-lg shadow p-3">
+                <div class="mb-2 text-center text-sm font-semibold text-gray-600"><ruby>設<rt>せっ</rt>定<rt>てい</rt></ruby></div>
+                 <div class="flex justify-around items-center p-1 bg-gray-200 rounded-lg">
+                    <label class="cursor-pointer flex-1 text-center p-1 rounded-md transition" for="chars15">
+                        <input type="radio" name="charsPerLine" id="chars15" value="15" class="sr-only peer">
+                        <span class="peer-checked:bg-white peer-checked:shadow peer-checked:text-blue-600 font-semibold block w-full rounded">15マス</span>
+                    </label>
+                    <label class="cursor-pointer flex-1 text-center p-1 rounded-md transition" for="chars20">
+                        <input type="radio" name="charsPerLine" id="chars20" value="20" class="sr-only peer" checked>
+                        <span class="peer-checked:bg-white peer-checked:shadow peer-checked:text-blue-600 font-semibold block w-full rounded">20マス</span>
+                    </label>
+                </div>
+                 <div class="mt-2">
+                    <label for="zoom-slider" class="block text-center text-sm font-semibold text-gray-600 mb-1"><ruby>表<rt>ひょう</rt>示<rt>じ</rt></ruby>サイズ: <span id="zoom-value">100</span>%</label>
+                    <input type="range" id="zoom-slider" min="50" max="150" value="100" step="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2 justify-between">
+                <button id="new-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg transition shadow-md text-sm flex-1"><ruby>新<rt>しん</rt>規<rt>き</rt></ruby></button>
+                <button id="save-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition shadow-md text-sm flex-1"><ruby>保<rt>ほ</rt>存<rt>ぞん</rt></ruby></button>
+                <button id="load-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition shadow-md text-sm flex-1"><ruby>読<rt>よ</rt>込<rt>こみ</rt></ruby></button>
+                <button id="print-button" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-3 rounded-lg transition shadow-md text-sm flex-1"><ruby>印<rt>いん</rt>刷<rt>さつ</rt></ruby></button>
+            </div>
+        </div>
+
+        <!-- 右パネル：原稿用紙プレビュー -->
+        <div class="w-2/3 bg-white rounded-lg shadow p-4 overflow-auto">
+            <div id="genko-grid-container" class="flex flex-row-reverse justify-end mx-auto" style="width: fit-content;">
+            </div>
+        </div>
+    </div>
+    
+    <!-- ▼▼▼【BUG FIX】class="hidden"を削除▼▼▼ -->
+    <div id="print-render-area"></div>
+
+
+    <!-- 読み込みモーダル -->
+    <div id="load-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full hidden z-20">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900"><ruby>保<rt>ほ</rt>存<rt>ぞん</rt></ruby>した<ruby>作<rt>さく</rt>文<rt>ぶん</rt></ruby>を<ruby>読<rt>よ</rt></ruby>み<ruby>込<rt>こ</rt></ruby>む</h3>
+                <div id="draft-list" class="mt-2 px-7 py-3 max-h-80 overflow-y-auto"></div>
+                <div class="items-center px-4 py-3">
+                    <button id="close-modal-button" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-600">とじる</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- トースト通知コンテナ -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50"></div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Application State ---
+        const state = {
+            currentDraftId: null,
+            charsPerLine: 20,
+            zoomLevel: 100,
+        };
+
+        // --- UI Element Cache ---
+        const ui = {
+            inputs: {
+                title: document.getElementById('title'),
+                class: document.getElementById('class'),
+                name: document.getElementById('name'),
+                content: document.getElementById('content'),
+            },
+            displays: {
+                charCount: document.getElementById('character-count'),
+                genkoContainer: document.getElementById('genko-grid-container'),
+                printArea: document.getElementById('print-render-area'),
+            },
+            buttons: {
+                new: document.getElementById('new-button'),
+                save: document.getElementById('save-button'),
+                load: document.getElementById('load-button'),
+                print: document.getElementById('print-button'),
+                closeModal: document.getElementById('close-modal-button'),
+            },
+            modal: {
+                container: document.getElementById('load-modal'),
+                list: document.getElementById('draft-list'),
+            },
+            settings: {
+                charsPerLineRadios: document.querySelectorAll('input[name="charsPerLine"]'),
+                zoomSlider: document.getElementById('zoom-slider'),
+                zoomValue: document.getElementById('zoom-value'),
+            }
+        };
+
+        // --- Core Logic ---
+        const renderApp = () => {
+            const charCountRuby = `<ruby>文<rt>も</rt>字<rt>じ</rt></ruby>`;
+            ui.displays.charCount.innerHTML = `${ui.inputs.content.value.length} ${charCountRuby}`;
+            
+            const headerLines = generateHeaderLines(ui.inputs.title.value, ui.inputs.class.value, ui.inputs.name.value, state.charsPerLine);
+            const bodyLines = parseBodyToLines(ui.inputs.content.value, state.charsPerLine);
+            
+            const allLines = [...headerLines, ...bodyLines];
+            renderLinesToDOM(allLines, state.charsPerLine);
+        };
+        
+        const generateHeaderLines = (title, className, name, charsPerLine) => {
+            const headerLines = [];
+            const nameLen = name.length;
+            const classLen = className.length;
+            const titleParas = title.split('\n');
+            titleParas.forEach(p => {
+                if (p === '' && headerLines.length > 0) {
+                    headerLines.push(Array(charsPerLine).fill(''));
+                    return;
+                }
+                const titleChars = p.split('');
+                if (titleChars.length === 0) return;
+                let currentTitleLine = Array(charsPerLine).fill('');
+                currentTitleLine[0] = ''; currentTitleLine[1] = '';
+                let charIndex = 2;
+                for (const char of titleChars) {
+                    if (charIndex >= charsPerLine) {
+                        headerLines.push(currentTitleLine);
+                        currentTitleLine = Array(charsPerLine).fill('');
+                        currentTitleLine[0] = ''; currentTitleLine[1] = '';
+                        charIndex = 2;
+                    }
+                    currentTitleLine[charIndex] = char;
+                    charIndex++;
+                }
+                headerLines.push(currentTitleLine);
+            });
+            if (title === '' && (name !== '' || className !== '')) {
+                 headerLines.push(Array(charsPerLine).fill(''));
+            }
+            const canFitOnOneLine = (nameLen + 1 + classLen) < (charsPerLine - 1);
+            if (nameLen > 0 || classLen > 0) {
+                if (canFitOnOneLine) {
+                    const line = Array(charsPerLine).fill('');
+                    if (nameLen > 0) {
+                        const nameStartIndex = charsPerLine - 1 - nameLen;
+                        for (let i = 0; i < nameLen; i++) line[nameStartIndex + i] = name[i];
+                    }
+                    if (classLen > 0) {
+                        const classStartIndex = charsPerLine - 1 - nameLen - 1 - classLen;
+                        for (let i = 0; i < classLen; i++) line[classStartIndex + i] = className[i];
+                    }
+                    headerLines.push(line);
+                } else {
+                    if (classLen > 0) {
+                        const classLine = Array(charsPerLine).fill('');
+                        const classStartIndex = charsPerLine - 1 - classLen;
+                        for (let i = 0; i < classLen; i++) classLine[classStartIndex + i] = className[i];
+                        headerLines.push(classLine);
+                    }
+                    if (nameLen > 0) {
+                        const nameLine = Array(charsPerLine).fill('');
+                        const nameStartIndex = charsPerLine - 1 - nameLen;
+                        for (let i = 0; i < nameLen; i++) nameLine[nameStartIndex + i] = name[i];
+                        headerLines.push(nameLine);
+                    }
+                }
+            }
+            if (headerLines.length > 0) {
+                 headerLines.push(Array(charsPerLine).fill(''));
+            }
+            return headerLines;
+        };
+        
+        const parseBodyToLines = (text, charsPerLine) => {
+            if (!text) return [];
+            const allLines = [];
+            const paragraphs = text.split('\n');
+            const lineStartNgChars = ['、','。','」','』','）',']','}','>','っ','ゃ','ゅ','ょ','ッ','ャ','ュ','ョ','ー',',','.',
+                '。」', '。』', '。）', '、」', '、』', '、）'];
+            const combineCharsMap = { '。': ['」', '』', ')'], '、': ['」', '』', ')'] };
+
+            paragraphs.forEach((p, paraIndex) => {
+                if (p === '' && paraIndex > 0) {
+                    allLines.push([]); 
+                    return;
+                }
+                const chars = p.split('');
+                let currentLine = ['']; // 段落始めは1マス空ける
+                for (let i = 0; i < chars.length; i++) {
+                    let char = chars[i];
+                    if (combineCharsMap[char] && combineCharsMap[char].includes(chars[i + 1])) {
+                        char += chars[++i];
+                    }
+                    if (currentLine.length === 0 && lineStartNgChars.includes(char) && allLines.length > 0) {
+                        const lastLine = allLines[allLines.length - 1];
+                        if (lastLine && lastLine.length > 0) {
+                            lastLine.push(char); 
+                            continue; 
+                        }
+                    }
+                    currentLine.push(char);
+                    if (currentLine.length === charsPerLine) {
+                        allLines.push(currentLine);
+                        currentLine = [];
+                    }
+                }
+                if (currentLine.length > 0) {
+                    allLines.push(currentLine);
+                }
+            });
+            return allLines;
+        };
+
+        const renderLinesToDOM = (lines, charsPerLine) => {
+            const container = ui.displays.genkoContainer.parentElement;
+            const availableHeight = container.clientHeight;
+            const baseCellSize = (availableHeight - 40) / charsPerLine;
+            const cellSize = Math.max(20, baseCellSize * (state.zoomLevel / 100));
+            renderGrid(ui.displays.genkoContainer, lines, charsPerLine, cellSize, Math.max(lines.length, Math.floor(200/charsPerLine)+1) );
+        };
+        
+        const renderGrid = (targetContainer, lines, charsPerLine, cellSize, totalLinesToRender) => {
+             targetContainer.innerHTML = '';
+             const fontSize = cellSize * 0.75;
+
+             for(let i=0; i < totalLinesToRender; i++){
+                const line = lines[i] || [];
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'genko-line relative flex flex-col border-gray-400 border-l-2 border-t-2';
+                if (i === totalLinesToRender - 1) lineDiv.classList.add('border-b-2');
+                
+                if (line.length > charsPerLine) {
+                    const extraCharsCount = line.length - charsPerLine;
+                    lineDiv.style.paddingBottom = `${cellSize * extraCharsCount}px`;
+                }
+
+                for (let j = 0; j < charsPerLine; j++) {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'genko-cell border-gray-400 border-r-2 border-b-2 flex items-center justify-center relative';
+                    cellDiv.style.width = `${cellSize}px`;
+                    cellDiv.style.height = `${cellSize}px`;
+                    cellDiv.style.fontSize = `${fontSize}px`;
+                    const cellContent = line[j] || '';
+
+                    if (j === charsPerLine - 1 && line.length > charsPerLine) {
+                        let pushedCharsHTML = '';
+                        for (let k = charsPerLine; k < line.length; k++) {
+                            const pushedChar = line[k];
+                            const verticalOffset = (k - charsPerLine);
+                            const topPosition = cellSize * (verticalOffset + 1);
+                            pushedCharsHTML += `
+                                <div class="absolute left-0 w-full flex items-center justify-center" style="height: ${cellSize}px; top: ${topPosition}px;">
+                                    <span>${pushedChar}</span>
+                                </div>`;
+                        }
+                        cellDiv.innerHTML = `<span>${cellContent}</span>` + pushedCharsHTML;
+                    } else {
+                        cellDiv.innerHTML = `<span>${cellContent}</span>`;
+                    }
+                    lineDiv.appendChild(cellDiv);
+                }
+                targetContainer.appendChild(lineDiv);
+            }
+        }
+        
+        // --- Event Handlers ---
+        const handleInput = () => renderApp();
+        const handleNew = () => {
+            if (!ui.inputs.content.value || confirm('入力内容を消去して、新しく作文を書き始めますか？')) {
+                state.currentDraftId = null;
+                Object.values(ui.inputs).forEach(input => input.value = '');
+                renderApp();
+                showToast('新しい作文を始めます。', 'info');
+            }
+        };
+        const handleSave = () => {
+            setButtonLoading(ui.buttons.save, true, '保存中...');
+            const draftData = {
+                id: state.currentDraftId,
+                title: ui.inputs.title.value,
+                class: ui.inputs.class.value,
+                name: ui.inputs.name.value,
+                content: ui.inputs.content.value
+            };
+            google.script.run
+                .withSuccessHandler(res => {
+                    if (res.status === 'success') state.currentDraftId = res.id;
+                    showToast(res.message, res.status);
+                    setButtonLoading(ui.buttons.save, false, '保存');
+                })
+                .withFailureHandler(err => {
+                    showToast('エラー: ' + err.message, 'error');
+                    setButtonLoading(ui.buttons.save, false, '保存');
+                })
+                .saveOrUpdateDraft(draftData);
+        };
+        const handleLoadModalOpen = () => {
+            ui.modal.container.classList.remove('hidden');
+            ui.modal.list.innerHTML = '<p>読み込み中...</p>';
+            google.script.run
+                .withSuccessHandler(drafts => {
+                    ui.modal.list.innerHTML = '';
+                    if (drafts.length === 0) {
+                        ui.modal.list.innerHTML = '<p>保存されている作文はありません。</p>';
+                        return;
+                    }
+                    const listEl = document.createElement('ul');
+                    listEl.className = 'space-y-2 text-left';
+                    drafts.forEach(d => {
+                        const item = document.createElement('li');
+                        item.className = 'p-3 border rounded-lg hover:bg-gray-100 flex justify-between items-center flex-wrap';
+                        const titleRuby = `<ruby>無<rt>む</rt>題<rt>だい</rt></ruby>`;
+                        const nameRuby = `<ruby>名<rt>な</rt>無<rt>な</rt></ruby>し`;
+                        item.innerHTML = `
+                            <div class="flex-grow mb-2 sm:mb-0">
+                                <span class="font-bold">${d.title || titleRuby}</span>
+                                <br><span class="text-sm text-gray-500">${d.name || nameRuby} / ${d.updatedAt}</span>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <button data-id="${d.id}" class="load-item bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm mr-2"><ruby>読<rt>よ</rt></ruby>み<ruby>込<rt>こ</rt></ruby>む</button>
+                                <button data-id="${d.id}" class="delete-item bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"><ruby>削<rt>さく</rt>除<rt>じょ</rt></ruby></button>
+                            </div>`;
+                        listEl.appendChild(item);
+                    });
+                    ui.modal.list.appendChild(listEl);
+                })
+                .withFailureHandler(err => ui.modal.list.innerHTML = `<p class="text-red-500">一覧の取得に失敗しました: ${err.message}</p>`)
+                .getDraftList();
+        };
+        const handleLoadItem = (id) => {
+             showToast('読み込み中...', 'info');
+             google.script.run
+                .withSuccessHandler(res => {
+                    if (res.status === 'success') {
+                        const d = res.data;
+                        state.currentDraftId = d.id;
+                        ui.inputs.title.value = d.title;
+                        ui.inputs.class.value = d.class;
+                        ui.inputs.name.value = d.name;
+                        ui.inputs.content.value = d.content;
+                        renderApp();
+                        ui.modal.container.classList.add('hidden');
+                        showToast('作文を読み込みました。', 'success');
+                    } else { showToast(res.message, 'error'); }
+                })
+                .withFailureHandler(err => showToast('読込エラー: ' + err.message, 'error'))
+                .loadDraft(id);
+        };
+        const handleDeleteItem = (id) => {
+            if (confirm('この作文を本当に削除しますか？\nこの操作は元に戻せません。')) {
+                showToast('削除中...', 'info');
+                google.script.run
+                    .withSuccessHandler(res => {
+                        showToast(res.message, res.status);
+                        if (res.status === 'success') {
+                            handleLoadModalOpen();
+                            if (state.currentDraftId === id) handleNew();
+                        }
+                    })
+                    .withFailureHandler(err => showToast('削除エラー: ' + err.message, 'error'))
+                    .deleteDraft(id);
+            }
+        };
+        const handleCharsPerLineChange = (event) => {
+            state.charsPerLine = parseInt(event.target.value, 10);
+            renderApp();
+        };
+        const handleZoomChange = (event) => {
+            state.zoomLevel = parseInt(event.target.value, 10);
+            ui.settings.zoomValue.textContent = state.zoomLevel;
+            renderApp();
+        };
+        const handlePrint = () => {
+            const CHARS_PER_LINE_PRINT = 20;
+            const LINES_PER_PAGE_PRINT = 20;
+            const headerLines = generateHeaderLines(ui.inputs.title.value, ui.inputs.class.value, ui.inputs.name.value, CHARS_PER_LINE_PRINT);
+            const bodyLines = parseBodyToLines(ui.inputs.content.value, CHARS_PER_LINE_PRINT);
+            const allLines = [...headerLines, ...bodyLines];
+
+            ui.displays.printArea.innerHTML = ''; 
+            
+            const CELL_SIZE_MM = 9.5;
+            const PX_PER_MM = 3.7795;
+            const cellSizePx = CELL_SIZE_MM * PX_PER_MM;
+
+            for(let i=0; i < allLines.length; i += LINES_PER_PAGE_PRINT) {
+                const pageLines = allLines.slice(i, i + LINES_PER_PAGE_PRINT);
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'print-page';
+                renderGrid(pageDiv, pageLines, CHARS_PER_LINE_PRINT, cellSizePx, LINES_PER_PAGE_PRINT);
+                ui.displays.printArea.appendChild(pageDiv);
+            }
+            
+            setTimeout(() => {
+                window.print();
+            }, 200); 
+        };
+
+        // --- Utility Functions ---
+        const showToast = (message, type = 'info') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500' };
+            toast.className = `toast p-4 rounded-lg shadow-lg text-white mb-2 ${colors[type] || colors.info}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        };
+        const setButtonLoading = (button, isLoading, loadingText) => {
+            button.disabled = isLoading;
+            if (isLoading) {
+                button.dataset.originalHtml = button.innerHTML;
+                button.innerHTML = loadingText;
+            } else {
+                 if(button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
+            }
+        };
+
+        // --- Event Listeners Setup ---
+        Object.values(ui.inputs).forEach(input => input.addEventListener('input', handleInput));
+        ui.buttons.new.addEventListener('click', handleNew);
+        ui.buttons.save.addEventListener('click', handleSave);
+        ui.buttons.load.addEventListener('click', handleLoadModalOpen);
+        ui.buttons.print.addEventListener('click', handlePrint);
+        ui.buttons.closeModal.addEventListener('click', () => ui.modal.container.classList.add('hidden'));
+        ui.settings.charsPerLineRadios.forEach(radio => radio.addEventListener('change', handleCharsPerLineChange));
+        ui.settings.zoomSlider.addEventListener('input', handleZoomChange);
+        window.addEventListener('resize', renderApp);
+        ui.modal.list.addEventListener('click', (event) => {
+            const target = event.target.closest('button');
+            if (!target) return;
+            if (target.matches('.load-item')) handleLoadItem(target.dataset.id);
+            if (target.matches('.delete-item')) handleDeleteItem(target.dataset.id);
+        });
+        
+        // --- Initial Render ---
+        renderApp();
+    });
+    </script>
+</body>
+</html>
