@@ -5,73 +5,128 @@
     <title>オンライン原稿用紙</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      html, body { height: 100%; overflow: hidden; }
+      html, body { height: 100%; overflow: hidden; font-family: 'Helvetica Neue', 'Arial', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif; }
       
-      /* ルビのスタイル調整 */
-      ruby rt { font-size: 0.5em; font-weight: normal; }
+      /* ルビのスタイル */
+      ruby rt { font-size: 0.5em; font-weight: normal; user-select: none; }
 
-      /* カスタムスタイル */
+      /* 原稿用紙のセルスタイル */
       .genko-cell { 
-        font-family: 'MS Mincho', 'Hiragio Mincho ProN', serif;
+        font-family: 'MS Mincho', 'Hiragino Mincho ProN', serif;
         writing-mode: vertical-rl; text-orientation: upright;
         -webkit-writing-mode: vertical-rl; -webkit-text-orientation: upright;
-        flex-shrink: 0; /* Prevent cells from shrinking */
+        flex-shrink: 0;
       }
       .genko-line::after {
-        content: '';
-        position: absolute;
-        left: 50%;
-        top: 0;
-        bottom: 0;
-        width: 1px;
-        background-color: #f0f0f0;
-        transform: translateX(-50%);
-        z-index: 0;
+        content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+        width: 1px; background-color: #f0f0f0; transform: translateX(-50%); z-index: 0;
       }
-       .genko-cell > span, .genko-cell > div > span { position: relative; z-index: 1; }
+       .genko-cell > span { position: relative; z-index: 1; }
        
       /* トースト通知のアニメーション */
       .toast { animation: toast-in-right 0.5s, toast-out-right 0.5s 2.5s; }
       @keyframes toast-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
       @keyframes toast-out-right { from { transform: translateX(0); } to { transform: translateX(100%); } }
 
-      /* ▼▼▼【BUG FIX】印刷と画面表示のスタイルを分離▼▼▼ */
       @media screen {
-        #print-render-area {
-          display: none;
-        }
+        #print-render-area { display: none; }
       }
 
-      /* 印刷時用のスタイル */
       @media print {
-        body * { visibility: hidden; }
+        body > *:not(#print-render-area) { display: none !important; }
         #print-render-area, #print-render-area * { visibility: visible; }
-        #print-render-area {
-          display: block; /* 印刷時には表示を強制 */
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-        }
+        #print-render-area { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
         @page {
           size: A4 landscape;
-          margin: 10mm;
+          margin: 15mm;
         }
+
         .print-page {
           width: 100%;
           height: 100%;
           display: flex;
-          flex-direction: row-reverse;
-          justify-content: flex-start;
-          align-items: flex-start;
+          flex-direction: column;
           page-break-after: always;
           box-sizing: border-box;
+          font-family: 'MS Mincho', 'Hiragino Mincho ProN', serif;
+        }
+
+        .print-header {
+          display: flex;
+          justify-content: space-between;
+          padding-bottom: 5mm;
+          font-size: 11pt;
+          border-bottom: 1px solid #ccc;
+          margin-bottom: 5mm;
+        }
+
+        .print-grid-wrapper {
+          width: 100%;
+          flex-grow: 1;
+          display: flex;
+          flex-direction: row-reverse;
+          justify-content: flex-start;
+        }
+        
+        .print-line {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          border-left: 1px solid #ccc;
+        }
+        .print-line:first-child { border-right: 1px solid #ccc; }
+
+        .print-cell {
+          width: 100%;
+          flex-grow: 1;
+          flex-basis: 0;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          border-bottom: 1px solid #ccc;
+          box-sizing: border-box;
+          font-size: 14pt;
+          writing-mode: vertical-rl;
+          text-orientation: upright;
+          position: relative;
+        }
+        .print-cell:first-child { border-top: 1px solid #ccc; }
+        
+        /* --- ▼▼▼【BUG FIX】ぶら下がり文字のセンタリングを修正 --- */
+        .hanging-chars {
+            position: absolute;
+            left: 50%;
+            top: 100%;
+            transform: translateX(-50%);
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            color: #000;
+        }
+        /* --- ▲▲▲【BUG FIX】 --- */
+        
+        .line-marker-container {
+            width: 15px;
+            height: 100%;
+            position: relative;
+        }
+        .line-marker {
+            position: absolute;
+            right: 5px;
+            font-size: 8pt;
+            color: #888;
+        }
+
+        .print-footer {
+          text-align: center;
+          padding-top: 5mm;
+          font-size: 10pt;
+          color: #555;
         }
       }
-      /* ▲▲▲【BUG FIX】▲▲▲ */
     </style>
 </head>
-<body class="bg-gray-100 font-sans text-gray-800 flex flex-col h-screen">
+<body class="bg-gray-100 text-gray-800 flex flex-col h-screen">
     
     <!-- ヘッダー -->
     <header class="bg-white shadow-md p-3 flex-shrink-0 z-10">
@@ -110,7 +165,7 @@
             <div class="flex flex-wrap gap-2 justify-between">
                 <button id="new-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg transition shadow-md text-sm flex-1"><ruby>新<rt>しん</rt>規<rt>き</rt></ruby></button>
                 <button id="save-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition shadow-md text-sm flex-1"><ruby>保<rt>ほ</rt>存<rt>ぞん</rt></ruby></button>
-                <button id="load-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition shadow-md text-sm flex-1"><ruby>読<rt>よ</rt>込<rt>こみ</rt></ruby></button>
+                <button id="load-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition shadow-md text-sm flex-1"><ruby>読<rt>よみ</rt>込<rt>こみ</rt></ruby></button>
                 <button id="print-button" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-3 rounded-lg transition shadow-md text-sm flex-1"><ruby>印<rt>いん</rt>刷<rt>さつ</rt></ruby></button>
             </div>
         </div>
@@ -122,9 +177,7 @@
         </div>
     </div>
     
-    <!-- ▼▼▼【BUG FIX】class="hidden"を削除▼▼▼ -->
     <div id="print-render-area"></div>
-
 
     <!-- 読み込みモーダル -->
     <div id="load-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full hidden z-20">
@@ -262,35 +315,53 @@
             if (!text) return [];
             const allLines = [];
             const paragraphs = text.split('\n');
-            const lineStartNgChars = ['、','。','」','』','）',']','}','>','っ','ゃ','ゅ','ょ','ッ','ャ','ュ','ョ','ー',',','.',
-                '。」', '。』', '。）', '、」', '、』', '、）'];
-            const combineCharsMap = { '。': ['」', '』', ')'], '、': ['」', '』', ')'] };
 
-            paragraphs.forEach((p, paraIndex) => {
-                if (p === '' && paraIndex > 0) {
-                    allLines.push([]); 
+            const combineCharsMap = { '。': ['」', '』', ')'], '、': ['」', '』', ')'] };
+            const lineStartNgChars = ['、','。','」','』','）',']','}','>','っ','ゃ','ゅ','ょ','ッ','ャ','ュ','ョ','ー',',','.'];
+            Object.keys(combineCharsMap).forEach(key => {
+                combineCharsMap[key].forEach(val => {
+                    lineStartNgChars.push(key + val);
+                });
+            });
+
+            paragraphs.forEach((p) => {
+                if (p === '') {
+                    allLines.push(Array(charsPerLine).fill(''));
                     return;
                 }
-                const chars = p.split('');
-                let currentLine = ['']; // 段落始めは1マス空ける
-                for (let i = 0; i < chars.length; i++) {
-                    let char = chars[i];
-                    if (combineCharsMap[char] && combineCharsMap[char].includes(chars[i + 1])) {
-                        char += chars[++i];
+                
+                const processedChars = [];
+                for (let i = 0; i < p.length; i++) {
+                    let char = p[i];
+                    if (p[i + 1] && combineCharsMap[char] && combineCharsMap[char].includes(p[i + 1])) {
+                        processedChars.push(char + p[i + 1]);
+                        i++; 
+                    } else {
+                        processedChars.push(char);
                     }
-                    if (currentLine.length === 0 && lineStartNgChars.includes(char) && allLines.length > 0) {
-                        const lastLine = allLines[allLines.length - 1];
-                        if (lastLine && lastLine.length > 0) {
-                            lastLine.push(char); 
-                            continue; 
-                        }
-                    }
-                    currentLine.push(char);
+                }
+
+                if (processedChars.length === 0) return;
+
+                // --- ▼▼▼【BUG FIX】自動字下げ機能を削除 ---
+                let currentLine = [];
+                // --- ▲▲▲【BUG FIX】 ---
+
+                let charIndex = 0;
+                while(charIndex < processedChars.length) {
+                    currentLine.push(processedChars[charIndex]);
+                    charIndex++;
+
                     if (currentLine.length === charsPerLine) {
+                        while(charIndex < processedChars.length && lineStartNgChars.includes(processedChars[charIndex])) {
+                            currentLine.push(processedChars[charIndex]);
+                            charIndex++;
+                        }
                         allLines.push(currentLine);
                         currentLine = [];
                     }
                 }
+                
                 if (currentLine.length > 0) {
                     allLines.push(currentLine);
                 }
@@ -303,48 +374,47 @@
             const availableHeight = container.clientHeight;
             const baseCellSize = (availableHeight - 40) / charsPerLine;
             const cellSize = Math.max(20, baseCellSize * (state.zoomLevel / 100));
-            renderGrid(ui.displays.genkoContainer, lines, charsPerLine, cellSize, Math.max(lines.length, Math.floor(200/charsPerLine)+1) );
+            renderGridForScreen(ui.displays.genkoContainer, lines, charsPerLine, cellSize);
         };
         
-        const renderGrid = (targetContainer, lines, charsPerLine, cellSize, totalLinesToRender) => {
+        const renderGridForScreen = (targetContainer, lines, charsPerLine, cellSize) => {
              targetContainer.innerHTML = '';
              const fontSize = cellSize * 0.75;
+             const totalLinesToRender = Math.max(lines.length, Math.floor(targetContainer.parentElement.clientWidth / (cellSize + 2)) -1);
 
              for(let i=0; i < totalLinesToRender; i++){
                 const line = lines[i] || [];
                 const lineDiv = document.createElement('div');
                 lineDiv.className = 'genko-line relative flex flex-col border-gray-400 border-l-2 border-t-2';
                 if (i === totalLinesToRender - 1) lineDiv.classList.add('border-b-2');
-                
-                if (line.length > charsPerLine) {
-                    const extraCharsCount = line.length - charsPerLine;
-                    lineDiv.style.paddingBottom = `${cellSize * extraCharsCount}px`;
-                }
 
                 for (let j = 0; j < charsPerLine; j++) {
                     const cellDiv = document.createElement('div');
-                    cellDiv.className = 'genko-cell border-gray-400 border-r-2 border-b-2 flex items-center justify-center relative';
+                    cellDiv.className = 'genko-cell border-gray-400 border-r-2 border-b-2 flex items-center justify-center';
                     cellDiv.style.width = `${cellSize}px`;
                     cellDiv.style.height = `${cellSize}px`;
                     cellDiv.style.fontSize = `${fontSize}px`;
-                    const cellContent = line[j] || '';
-
-                    if (j === charsPerLine - 1 && line.length > charsPerLine) {
-                        let pushedCharsHTML = '';
-                        for (let k = charsPerLine; k < line.length; k++) {
-                            const pushedChar = line[k];
-                            const verticalOffset = (k - charsPerLine);
-                            const topPosition = cellSize * (verticalOffset + 1);
-                            pushedCharsHTML += `
-                                <div class="absolute left-0 w-full flex items-center justify-center" style="height: ${cellSize}px; top: ${topPosition}px;">
-                                    <span>${pushedChar}</span>
-                                </div>`;
-                        }
-                        cellDiv.innerHTML = `<span>${cellContent}</span>` + pushedCharsHTML;
-                    } else {
-                        cellDiv.innerHTML = `<span>${cellContent}</span>`;
-                    }
+                    cellDiv.innerHTML = `<span>${line[j] || ''}</span>`;
                     lineDiv.appendChild(cellDiv);
+                }
+                
+                if(line.length > charsPerLine){
+                    const extraCharsContainer = document.createElement('div');
+                    extraCharsContainer.style.position = 'absolute';
+                    extraCharsContainer.style.bottom = `-${(line.length - charsPerLine) * cellSize}px`;
+                    extraCharsContainer.style.left = '0';
+                    extraCharsContainer.style.width = '100%';
+                    
+                    for(let k = charsPerLine; k < line.length; k++){
+                        const extraCell = document.createElement('div');
+                        extraCell.className = 'genko-cell flex items-center justify-center';
+                        extraCell.style.width = `${cellSize}px`;
+                        extraCell.style.height = `${cellSize}px`;
+                        extraCell.style.fontSize = `${fontSize}px`;
+                        extraCell.innerHTML = `<span>${line[k]}</span>`;
+                        extraCharsContainer.appendChild(extraCell);
+                    }
+                    lineDiv.appendChild(extraCharsContainer);
                 }
                 targetContainer.appendChild(lineDiv);
             }
@@ -457,30 +527,92 @@
             ui.settings.zoomValue.textContent = state.zoomLevel;
             renderApp();
         };
+        
         const handlePrint = () => {
-            const CHARS_PER_LINE_PRINT = 20;
-            const LINES_PER_PAGE_PRINT = 20;
-            const headerLines = generateHeaderLines(ui.inputs.title.value, ui.inputs.class.value, ui.inputs.name.value, CHARS_PER_LINE_PRINT);
-            const bodyLines = parseBodyToLines(ui.inputs.content.value, CHARS_PER_LINE_PRINT);
+            const printSettings = state.charsPerLine === 15 
+                ? { chars: 15, lines: 16 } 
+                : { chars: 20, lines: 20 };
+
+            const headerLines = generateHeaderLines(ui.inputs.title.value, ui.inputs.class.value, ui.inputs.name.value, printSettings.chars);
+            const bodyLines = parseBodyToLines(ui.inputs.content.value, printSettings.chars);
             const allLines = [...headerLines, ...bodyLines];
 
             ui.displays.printArea.innerHTML = ''; 
             
-            const CELL_SIZE_MM = 9.5;
-            const PX_PER_MM = 3.7795;
-            const cellSizePx = CELL_SIZE_MM * PX_PER_MM;
+            let pageCount = Math.ceil(allLines.length / printSettings.lines);
+            if (pageCount === 0) pageCount = 1;
 
-            for(let i=0; i < allLines.length; i += LINES_PER_PAGE_PRINT) {
-                const pageLines = allLines.slice(i, i + LINES_PER_PAGE_PRINT);
+            for(let i = 0; i < pageCount; i++) {
+                const pageLines = allLines.slice(i * printSettings.lines, (i + 1) * printSettings.lines);
                 const pageDiv = document.createElement('div');
                 pageDiv.className = 'print-page';
-                renderGrid(pageDiv, pageLines, CHARS_PER_LINE_PRINT, cellSizePx, LINES_PER_PAGE_PRINT);
+
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'print-header';
+                headerDiv.innerHTML = `
+                    <span>${ui.inputs.title.value || '無題'}</span>
+                    <span>${ui.inputs.class.value || ''} ${ui.inputs.name.value || ''}</span>
+                `;
+                
+                const gridWrapper = document.createElement('div');
+                gridWrapper.className = 'print-grid-wrapper';
+                
+                const markerContainer = document.createElement('div');
+                markerContainer.className = 'line-marker-container';
+                for(let j=1; j <= printSettings.chars; j++){
+                    if(j % 5 === 0){
+                        const marker = document.createElement('div');
+                        marker.className = 'line-marker';
+                        marker.textContent = j;
+                        marker.style.top = `calc(${(100 / printSettings.chars) * (j - 0.5)}% - 0.5em)`;
+                        markerContainer.appendChild(marker);
+                    }
+                }
+                
+                for(let lineIdx = 0; lineIdx < printSettings.lines; lineIdx++) {
+                    const lineData = pageLines[lineIdx] || [];
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'print-line';
+                    lineDiv.style.width = `calc((100% - 15px) / ${printSettings.lines})`;
+                    
+                    for (let charIdx = 0; charIdx < printSettings.chars; charIdx++) {
+                        const cellDiv = document.createElement('div');
+                        cellDiv.className = 'print-cell';
+                        
+                        const primaryChar = lineData[charIdx] || '';
+                        let hangingCharsContent = '';
+
+                        if (charIdx === printSettings.chars - 1 && lineData.length > printSettings.chars) {
+                            for (let k = printSettings.chars; k < lineData.length; k++) {
+                                hangingCharsContent += (lineData[k] || '');
+                            }
+                        }
+                        
+                        cellDiv.innerHTML = `
+                            <span>${primaryChar}</span>
+                            ${hangingCharsContent ? `<span class="hanging-chars">${hangingCharsContent}</span>` : ''}
+                        `;
+                        
+                        lineDiv.appendChild(cellDiv);
+                    }
+
+                    gridWrapper.appendChild(lineDiv);
+                }
+                
+                gridWrapper.appendChild(markerContainer);
+                
+                const footerDiv = document.createElement('div');
+                footerDiv.className = 'print-footer';
+                const totalChars = ui.inputs.content.value.length;
+                footerDiv.textContent = `総文字数: ${totalChars}字 (${i + 1}/${pageCount}ページ)`;
+
+                pageDiv.appendChild(headerDiv);
+                pageDiv.appendChild(gridWrapper);
+                pageDiv.appendChild(footerDiv);
                 ui.displays.printArea.appendChild(pageDiv);
             }
             
-            setTimeout(() => {
-                window.print();
-            }, 200); 
+            setTimeout(() => window.print(), 200); 
         };
 
         // --- Utility Functions ---
@@ -526,3 +658,4 @@
     </script>
 </body>
 </html>
+
