@@ -3,38 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <base target="_top">
+    <!-- スマホやタブレットで見やすくするための設定 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>オンライン原稿用紙</title>
     
-    <!-- Bootstrap 5 CSS -->
+    <!-- デザインの部品（Bootstrap 5）を読み込み -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
+    <!-- アイコン（Bootstrap Icons）を読み込み -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <!-- Google Fonts -->
+    <!-- フォント（Zen丸ゴシック、Zenオールド明朝）を読み込み -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
-    <!-- SweetAlert2 -->
+    <!-- ポップアップ表示（SweetAlert2）を読み込み -->
     <link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-material-ui/material-ui.min.css" rel="stylesheet">
 
     <style>
+        /* =========================================
+           1. 全体のデザイン設定
+           ========================================= */
         :root {
-            --primary-color: #1a73e8; /* Google Blue */
-            --bg-color: #f8f9fa;
-            --paper-color: #fdfbf7;
-            --line-color: rgba(46, 125, 50, 0.4); /* 深緑 */
-            --line-strong: rgba(46, 125, 50, 0.8);
+            --primary-color: #1a73e8; /* メインの色（青） */
+            --bg-color: #f8f9fa;      /* 背景色（薄いグレー） */
+            --paper-color: #fdfbf7;   /* 原稿用紙の紙の色（クリーム色） */
+            --line-color: rgba(46, 125, 50, 0.4); /* マス目の線の色（緑） */
+            --line-strong: rgba(46, 125, 50, 0.8); /* 枠線の濃い色 */
         }
 
         body {
-            font-family: "Zen Maru Gothic", sans-serif;
+            font-family: "Zen Maru Gothic", sans-serif; /* 画面全体は丸ゴシック */
             background-color: var(--bg-color);
             height: 100vh;
-            overflow: hidden;
+            overflow: hidden; /* 画面全体のスクロールは禁止（各エリアでスクロールさせる） */
             color: #333;
         }
 
-        /* --- ヘッダー --- */
+        /* ヘッダー（上のバー） */
         .navbar {
             background-color: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.08);
@@ -47,19 +51,13 @@
             gap: 10px;
         }
 
-        /* --- ルビの調整 --- */
-        ruby {
-            ruby-position: over;
-        }
-        rt {
-            font-size: 0.6em;
-            color: #666;
-            font-weight: normal;
-        }
+        /* ふりがな（ルビ）の調整 */
+        ruby { ruby-position: over; }
+        rt { font-size: 0.6em; color: #666; font-weight: normal; }
 
-        /* --- レイアウト --- */
+        /* レイアウト枠 */
         .main-container {
-            height: calc(100vh - 60px - 30px); /* Header - Footer */
+            height: calc(100vh - 60px - 30px); /* ヘッダーとフッターの高さを引く */
             padding-top: 20px;
             padding-bottom: 20px;
         }
@@ -73,7 +71,9 @@
             flex-direction: column;
         }
 
-        /* --- 入力エリア（ノート風） --- */
+        /* =========================================
+           2. 入力エリア（左側）
+           ========================================= */
         .input-area-wrapper {
             flex-grow: 1;
             position: relative;
@@ -91,6 +91,7 @@
             font-family: "Zen Maru Gothic", sans-serif;
             font-size: 1.1rem;
             line-height: 2rem;
+            /* ノートのような横罫線を表示 */
             background-image: linear-gradient(#f1f5f9 1px, transparent 1px);
             background-size: 100% 2rem;
             outline: none;
@@ -108,59 +109,52 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        /* --- 原稿用紙プレビュー --- */
+        /* =========================================
+           3. 原稿用紙プレビュー（右側）
+           ========================================= */
         .preview-area {
             background-color: #e9ecef;
             border-radius: 12px;
-            /* 横スクロール有効化、縦は隠す */
-            overflow-x: auto;
+            overflow-x: auto; /* 横スクロール許可 */
             overflow-y: hidden;
             display: flex;
-            align-items: center; /* 上下中央 */
-            justify-content: flex-start; /* コンテンツの配置 */
+            align-items: center;
+            justify-content: flex-start;
             padding: 20px;
             position: relative;
-            /* 縦書きに合わせて右から左へスクロール */
-            direction: rtl; 
+            direction: rtl; /* 縦書きなので右から左へ */
         }
         
-        /* スケール調整後のサイズを確保するラッパー */
+        /* 画面サイズに合わせて縮小表示するための枠 */
         #paper-wrapper {
-            /* JSでサイズ設定 */
             flex-shrink: 0;
             position: relative;
-            margin: 0 auto; /* 必要に応じて */
+            margin: 0 auto;
         }
-
-        /* スケーリング対象 */
         #paper-scaler {
-            transform-origin: top right; /* 右上基準で縮小 */
+            transform-origin: top right;
             transition: transform 0.3s ease-out;
             position: absolute;
-            top: 0;
-            right: 0;
+            top: 0; right: 0;
         }
 
         .paper-sheet {
             background-color: var(--paper-color);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             padding: 40px;
-            
-            /* 中身に合わせてサイズ決定 */
             width: fit-content;
             height: fit-content;
             min-height: 80vh; 
             min-width: 600px;
-            
             display: flex;
             justify-content: flex-start;
-            direction: ltr; /* 内部は左書き扱い(flex-directionで制御) */
+            direction: ltr; /* 内部の配置方向 */
             box-sizing: border-box;
         }
 
         .genko-grid-wrapper {
             display: flex;
-            flex-direction: row-reverse; /* 右から左へ行を追加 */
+            flex-direction: row-reverse; /* 右から左へ行を並べる */
             gap: 0;
             height: 100%;
         }
@@ -175,7 +169,7 @@
         .genko-line { border-left: 1px solid var(--line-strong); }
 
         .genko-cell {
-            font-family: "Zen Old Mincho", serif;
+            font-family: "Zen Old Mincho", serif; /* 原稿用紙の中は明朝体 */
             writing-mode: vertical-rl;
             text-orientation: mixed;
             display: flex;
@@ -189,7 +183,7 @@
         .genko-cell:first-child { border-top: 1px solid var(--line-strong); }
         .genko-cell:last-child { border-bottom: 1px solid var(--line-strong); }
 
-        /* 画面表示用ぶら下がりスタイル */
+        /* 欄外にはみ出す文字（句読点など） */
         .hanging-char {
             position: absolute;
             top: 100%;
@@ -204,7 +198,7 @@
             color: #000;
         }
 
-        /* --- ローディングオーバーレイ --- */
+        /* 処理中のくるくる表示 */
         #loading-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -217,14 +211,16 @@
             backdrop-filter: blur(5px);
         }
 
-        /* --- 印刷用スタイル --- */
+        /* =========================================
+           4. 印刷用の設定 (Ctrl+Pしたとき用)
+           ========================================= */
         @media print {
-            body * { visibility: hidden; }
-            #print-render-area, #print-render-area * { visibility: visible; }
+            body * { visibility: hidden; } /* 一旦全部消す */
+            #print-render-area, #print-render-area * { visibility: visible; } /* 印刷用エリアだけ表示 */
             #print-render-area {
                 position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0;
             }
-            @page { size: A4 landscape; margin: 0; }
+            @page { size: A4 landscape; margin: 0; } /* A4横向き */
             
             .print-page {
                 width: 297mm; height: 210mm;
@@ -236,11 +232,11 @@
                 padding: 10mm;
             }
             
+            /* 印刷用のグリッド（魚尾などの配置） */
             .print-layout-grid {
-                width: 100%;
-                height: 100%;
+                width: 100%; height: 100%;
                 display: grid;
-                grid-template-columns: 1fr 16mm 1fr;
+                grid-template-columns: 1fr 16mm 1fr; /* 左半分、真ん中(魚尾)、右半分 */
                 border: 2px solid #2e7d32;
             }
 
@@ -255,9 +251,7 @@
             }
             .gyobi-content {
                 writing-mode: vertical-rl;
-                display: flex;
-                align-items: center;
-                gap: 10mm;
+                display: flex; align-items: center; gap: 10mm;
             }
             .gyobi-mark {
                 border: 1px solid #2e7d32;
@@ -266,11 +260,7 @@
                 margin-bottom: 5mm;
             }
 
-            .print-half-grid {
-                display: flex;
-                flex-direction: row-reverse;
-            }
-
+            .print-half-grid { display: flex; flex-direction: row-reverse; }
             .print-line {
                 flex: 1; display: flex; flex-direction: column;
                 border-left: 1px solid rgba(46,125,50,0.4);
@@ -282,27 +272,19 @@
                 flex: 1; border-bottom: 1px solid rgba(46,125,50,0.4);
                 display: flex; align-items: center; justify-content: center;
                 position: relative;
-                writing-mode: vertical-rl;
-                text-orientation: mixed;
+                writing-mode: vertical-rl; text-orientation: mixed;
             }
-            
             .hanging-chars-print {
-                position: absolute; 
-                top: 100%; 
-                left: 50%; 
-                transform: translateX(-50%);
-                white-space: nowrap; 
-                writing-mode: vertical-rl; 
-                font-size: 0.6em;
-                margin-top: -2mm;
-                line-height: 1;
+                position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+                white-space: nowrap; writing-mode: vertical-rl; font-size: 0.6em;
+                margin-top: -2mm; line-height: 1;
             }
         }
     </style>
 </head>
 <body>
 
-    <!-- ヘッダー (App Bar) -->
+    <!-- ヘッダー -->
     <nav class="navbar sticky-top">
         <div class="container-fluid px-4">
             <a class="navbar-brand" href="#">
@@ -312,19 +294,19 @@
                 </div>
             </a>
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-outline-secondary btn-sm rounded-circle p-2" onclick="showSettings()">
+                <button class="btn btn-outline-secondary btn-sm rounded-circle p-2" onclick="showSettings()" title="設定">
                     <i class="bi bi-gear-fill"></i>
                 </button>
-                <span class="badge bg-light text-secondary border">v1.0</span>
+                <span class="badge bg-light text-secondary border">v2.0</span>
             </div>
         </div>
     </nav>
 
-    <!-- メインコンテンツ -->
+    <!-- メイン画面 -->
     <div class="container-fluid main-container">
         <div class="row h-100 g-3">
             
-            <!-- 左カラム：入力・操作 -->
+            <!-- 左側：入力画面 -->
             <div class="col-lg-4 col-md-5 h-100">
                 <div class="card p-3">
                     <div class="mb-3">
@@ -370,15 +352,14 @@
                 </div>
             </div>
 
-            <!-- 右カラム：プレビュー -->
+            <!-- 右側：原稿用紙プレビュー画面 -->
             <div class="col-lg-8 col-md-7 h-100">
                 <div class="card preview-area" id="paper-container">
-                    <!-- 自動フィット用のラッパー構造 -->
                     <div id="paper-wrapper">
                         <div id="paper-scaler">
                             <div class="paper-sheet" id="paper-sheet">
                                 <div id="genko-grid" class="genko-grid-wrapper">
-                                    <!-- JSで生成 -->
+                                    <!-- ここにJavaScriptでマス目が作られます -->
                                 </div>
                             </div>
                         </div>
@@ -390,49 +371,60 @@
 
     <!-- フッター -->
     <footer class="fixed-bottom bg-white border-top py-2 text-center text-muted small">
-        &copy; 2026 オンライン原稿用紙 <a href="https://note.com/cute_borage86" target="_blank" rel="noopener noreferrer" class="text-reset text-decoration-none">GIGA山</a>
+        &copy; 2026 オンライン原稿用紙 for GIGA School
     </footer>
 
-    <!-- 印刷用レンダリングエリア（非表示） -->
+    <!-- 印刷用エリア（普段は見えません） -->
     <div id="print-render-area"></div>
 
-    <!-- ローディングオーバーレイ -->
+    <!-- 処理中オーバーレイ -->
     <div id="loading-overlay">
         <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
         <div class="mt-3 fw-bold text-primary fs-5"><ruby>処理<rt>しょり</rt></ruby><ruby>中<rt>ちゅう</rt></ruby>です...</div>
+        <div class="text-muted small mt-2">そのまま おまちください</div>
     </div>
 
-    <!-- 外部ライブラリJS -->
+    <!-- JSライブラリ -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- State ---
+        
+        // ==========================================
+        //  1. アプリの設定と状態 (State)
+        // ==========================================
         const state = {
-            currentDraftId: null,
-            charsPerLine: 20, // 20 or 15
-            allDrafts: []
+            currentDraftId: null,   // 現在編集中の作文ID（nullなら新規）
+            charsPerLine: 20,       // 1行あたりの文字数（20文字 or 15文字）
+            allDrafts: []           // 読み込んだ作文リストの一時保存
         };
 
-        const STORAGE_KEY = 'genko_draft_v1';
+        const STORAGE_KEY = 'genko_draft_autosave_v2'; // ブラウザ保存用のキー名
 
-        // --- Elements ---
+        // ==========================================
+        //  2. 画面の要素を取得 (UI Elements)
+        // ==========================================
         const ui = {
+            // 入力フォーム
             title: document.getElementById('title'),
             class: document.getElementById('class'),
             name: document.getElementById('name'),
             content: document.getElementById('content'),
             charCount: document.getElementById('char-count-val'),
+            
+            // プレビュー表示エリア
             grid: document.getElementById('genko-grid'),
             printArea: document.getElementById('print-render-area'),
             loading: document.getElementById('loading-overlay'),
-            // 自動フィット用要素
+            
+            // 拡大縮小（フィット）用
             paperContainer: document.getElementById('paper-container'),
             paperWrapper: document.getElementById('paper-wrapper'),
             paperScaler: document.getElementById('paper-scaler'),
             paperSheet: document.getElementById('paper-sheet'),
             
+            // ボタン類
             btns: {
                 new: document.getElementById('btn-new'),
                 save: document.getElementById('btn-save'),
@@ -441,12 +433,221 @@
             }
         };
 
+        // 読み込み中画面の表示切り替え
         const setLoading = (isLoading) => {
             ui.loading.style.display = isLoading ? 'flex' : 'none';
         };
 
-        // --- Logic: Auto Save ---
-        
+        // ==========================================
+        //  3. 原稿用紙のロジック (Logic)
+        //  ※ ここが一番重要な計算処理です
+        // ==========================================
+
+        /**
+         * 1行目・2行目（題名と名前）のマス目データを作成します。
+         * 名前は下揃えにします。
+         */
+        const generateHeaderLines = (title, className, name, chars) => {
+            const lines = [];
+            
+            // 題名：上2マス空けて配置
+            const titleParas = title.split('\n');
+            titleParas.forEach(p => {
+                if(!p && lines.length === 0) return; // 空行スキップ
+                let line = Array(chars).fill('');
+                let cursor = 2; // 2マス空ける
+                p.split('').forEach(c => {
+                    // 文字数が溢れたら改行（簡易処理）
+                    if(cursor >= chars) { 
+                        lines.push(line); 
+                        line = Array(chars).fill(''); 
+                        cursor = 0; 
+                    }
+                    line[cursor++] = c;
+                });
+                lines.push(line);
+            });
+            // 題名と本文の間には必ず空白行を入れないルールもあるが、
+            // ここでは見やすさのため題名が空でなければ1行空けるなどの調整が可能。
+            if(lines.length === 0 || (title && lines.length > 0)) lines.push(Array(chars).fill(''));
+
+            // 名前：下1マス空けて配置（クラス名 + 名前）
+            const footerText = (className + ' ' + name).trim();
+            if(footerText) {
+                let line = Array(chars).fill('');
+                // 下1マス空けるための開始位置を計算
+                let start = Math.max(0, chars - footerText.length - 1);
+                footerText.split('').forEach((c, i) => {
+                    if(start + i < chars) line[start + i] = c;
+                });
+                lines.push(line);
+                // 本文との間に1行空ける
+                lines.push(Array(chars).fill(''));
+            }
+            return lines;
+        };
+
+        /**
+         * 本文を解析してマス目に配置します。
+         * 「禁則処理（句読点が行頭に来ないようにする）」を行います。
+         */
+        const parseBody = (text, chars) => {
+            const lines = [];
+            
+            // ■ 行頭に来てはいけない文字（前の行の最後にぶら下げる）
+            const noStart = ['、','。','」','』','）','っ','ゃ','ゅ','ょ','ッ','ャ','ュ','ョ','ー',',','.','」','』',']','}','>','ぁ','ぃ','ぅ','ぇ','ぉ','ァ','ィ','ゥ','ェ','ォ','ヮ','ヵ','ヶ','・','？','！','‼','⁇','々'];
+            // ■ 行末に来てはいけない文字（次の行に送る）
+            const noEnd = ['「', '『', '（', '(', '[', '{', '<', '【', '〔', '［'];
+            // ■ ひとまとめにする文字ペア（「。」と「」」など）
+            const compressionPairs = ['。」', '。』', '。）', '、」', '、』', '、）', '！』', '！」', '？』', '？」'];
+            
+            text.split('\n').forEach(p => {
+                // 段落が空なら空行を追加
+                if(!p) { lines.push(Array(chars).fill('')); return; }
+                
+                let line = [];
+                const pChars = p.split('');
+                let i = 0;
+
+                while(i < pChars.length) {
+                    let char = pChars[i];
+                    
+                    // 1. 文字ペアの結合チェック（「。」「」」などを1文字扱いにする）
+                    if (i < pChars.length - 1) {
+                        const pair = char + pChars[i+1];
+                        if (compressionPairs.includes(pair)) { 
+                            char = pair; 
+                            i++; // 次の文字も消費
+                        }
+                    }
+
+                    // 2. 行末の禁則処理（「 が行末に来たら改行して次行へ）
+                    if (line.length === chars - 1) {
+                         if (noEnd.includes(char.charAt(0))) {
+                             lines.push(line); 
+                             line = []; 
+                             line.push(char); 
+                             i++; 
+                             continue;
+                         }
+                    }
+
+                    line.push(char);
+                    i++;
+
+                    // 3. 行が一杯になった時の処理（ぶら下げ処理）
+                    if (line.length >= chars) {
+                        // 次に来る文字が行頭禁止文字かチェック
+                        while (i < pChars.length) {
+                            let nextStartChar = pChars[i];
+                            let nextUnit = nextStartChar;
+                            let step = 1;
+
+                            // 次の文字もペアかもしれない
+                            if (i < pChars.length - 1) {
+                                const nextPair = nextStartChar + pChars[i+1];
+                                if (compressionPairs.includes(nextPair)) { 
+                                    nextUnit = nextPair; 
+                                    step = 2; 
+                                }
+                            }
+
+                            // 行頭禁止文字なら、無理やり今の行（欄外）に押し込む
+                            if (noStart.includes(nextUnit.charAt(0))) {
+                                line.push(nextUnit); 
+                                i += step;
+                            } else { 
+                                break; // 通常文字ならループ終了
+                            }
+                        }
+                        // 行を確定
+                        lines.push(line); 
+                        line = [];
+                    }
+                }
+                // 残った文字があれば行に追加
+                if(line.length > 0) lines.push(line);
+            });
+            return lines;
+        };
+
+        // 画面の再描画（レンダリング）
+        const renderApp = () => {
+            // 文字数カウント
+            ui.charCount.textContent = ui.content.value.length;
+
+            // 原稿用紙データの生成
+            const chars = state.charsPerLine;
+            const header = generateHeaderLines(ui.title.value, ui.class.value, ui.name.value, chars);
+            const body = parseBody(ui.content.value, chars);
+            const all = [...header, ...body];
+
+            ui.grid.innerHTML = '';
+            
+            // 最低でも10行は表示する
+            const renderLen = Math.max(all.length, 10);
+            
+            // CSSサイズ設定（20文字用と15文字用）
+            const cellSize = chars === 20 ? '2.8rem' : '3.6rem';
+            const fontSize = chars === 20 ? '1.6rem' : '2.0rem';
+
+            // DOM生成
+            for(let i=0; i<renderLen; i++) {
+                const rowData = all[i] || [];
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'genko-line';
+                
+                for(let j=0; j<chars; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'genko-cell';
+                    cell.style.width = cellSize;
+                    cell.style.height = cellSize;
+                    cell.style.fontSize = fontSize;
+                    
+                    // 文字を入れる
+                    cell.textContent = rowData[j] || '';
+
+                    // 欄外へのぶら下げ処理（行の最後のマスで、かつ文字が溢れている場合）
+                    if(j === chars - 1 && rowData.length > chars) { 
+                        const hang = document.createElement('div');
+                        hang.className = 'hanging-char';
+                        // 溢れた文字を全部入れる
+                        hang.textContent = rowData.slice(chars).join('');
+                        cell.appendChild(hang);
+                    }
+                    lineDiv.appendChild(cell);
+                }
+                ui.grid.appendChild(lineDiv);
+            }
+            
+            // 少し待ってからサイズ調整を実行（描画ズレ防止）
+            setTimeout(fitPaperToScreen, 50);
+        };
+
+        // プレビュー画面の自動サイズ調整
+        const fitPaperToScreen = () => {
+            ui.paperScaler.style.transform = 'scale(1)';
+            ui.paperWrapper.style.width = 'auto';
+            ui.paperWrapper.style.height = 'auto';
+            
+            const containerHeight = ui.paperContainer.clientHeight - 40;
+            const paperWidth = ui.paperSheet.scrollWidth;
+            const paperHeight = ui.paperSheet.scrollHeight;
+
+            if (paperHeight === 0) return;
+
+            // 縦幅に合わせて縮小率を計算
+            let scale = containerHeight / paperHeight;
+            if (scale > 1) scale = 1; // 拡大はしない
+
+            ui.paperScaler.style.transform = `scale(${scale})`;
+            ui.paperWrapper.style.width = `${paperWidth * scale}px`;
+            ui.paperWrapper.style.height = `${paperHeight * scale}px`;
+        };
+
+        // ==========================================
+        //  4. 自動保存機能 (Auto Save)
+        // ==========================================
         const autoSave = () => {
             const data = {
                 id: state.currentDraftId,
@@ -465,6 +666,7 @@
             if (saved) {
                 try {
                     const data = JSON.parse(saved);
+                    // 中身が少しでもあれば復元
                     if (data.title || data.content || data.name || data.class) {
                         ui.title.value = data.title || '';
                         ui.class.value = data.class || '';
@@ -480,203 +682,26 @@
                             icon: 'info', 
                             html: '<span class="fw-bold"><ruby>編集<rt>へんしゅう</rt></ruby><ruby>中<rt>ちゅう</rt></ruby>のデータを<ruby>復元<rt>ふくげん</rt></ruby>しました</span>' 
                         });
-                        
                         renderApp();
                     }
-                } catch (e) {
-                    console.error('復元エラー:', e);
-                }
+                } catch (e) { console.error(e); }
             }
         };
 
-        const clearAutoSave = () => {
-            localStorage.removeItem(STORAGE_KEY);
-        };
+        // ==========================================
+        //  5. ユーザー操作イベント (Events)
+        // ==========================================
 
-        // --- Logic: Rendering & Scaling ---
-        
-        // 【修正】高さを基準にフィットさせ、横はスクロール可能にする
-        const fitPaperToScreen = () => {
-            ui.paperScaler.style.transform = 'scale(1)';
-            ui.paperWrapper.style.width = 'auto';
-            ui.paperWrapper.style.height = 'auto';
-            
-            const containerHeight = ui.paperContainer.clientHeight - 40; // padding分
-            const paperWidth = ui.paperSheet.scrollWidth;
-            const paperHeight = ui.paperSheet.scrollHeight;
-
-            if (paperHeight === 0) return;
-
-            // 高さのみの比率を計算
-            let scale = containerHeight / paperHeight;
-            if (scale > 1) scale = 1; // 拡大はしない
-
-            // 変形適用
-            ui.paperScaler.style.transform = `scale(${scale})`;
-            
-            // スケーリング後の実サイズをラッパーに設定して、スクロール領域を確保
-            ui.paperWrapper.style.width = `${paperWidth * scale}px`;
-            ui.paperWrapper.style.height = `${paperHeight * scale}px`;
-        };
-
-        const generateHeaderLines = (title, className, name, chars) => {
-            const lines = [];
-            const titleParas = title.split('\n');
-            titleParas.forEach(p => {
-                if(!p && lines.length === 0) return;
-                let line = Array(chars).fill('');
-                let cursor = 2; 
-                p.split('').forEach(c => {
-                    if(cursor >= chars) { lines.push(line); line = Array(chars).fill(''); cursor = 0; }
-                    line[cursor++] = c;
-                });
-                lines.push(line);
+        // 入力時のリアルタイム更新
+        [ui.title, ui.class, ui.name, ui.content].forEach(el => {
+            el.addEventListener('input', () => {
+                renderApp();
+                autoSave();
             });
-            if(lines.length === 0 || (title && lines.length > 0)) lines.push(Array(chars).fill(''));
-
-            const footerText = (className + ' ' + name).trim();
-            if(footerText) {
-                let line = Array(chars).fill('');
-                let start = Math.max(0, chars - footerText.length - 1);
-                footerText.split('').forEach((c, i) => {
-                    if(start + i < chars) line[start + i] = c;
-                });
-                lines.push(line);
-                lines.push(Array(chars).fill(''));
-            }
-            return lines;
-        };
-
-        const parseBody = (text, chars) => {
-            const lines = [];
-            const noStart = ['、','。','」','』','）','っ','ゃ','ゅ','ょ','ッ','ャ','ュ','ョ','ー',',','.','」','』',']','}','>','ぁ','ぃ','ぅ','ぇ','ぉ','ァ','ィ','ゥ','ェ','ォ','ヮ','ヵ','ヶ','・','？','！','‼','⁇','々'];
-            const noEnd = ['「', '『', '（', '(', '[', '{', '<', '【', '〔', '［'];
-            const compressionPairs = ['。」', '。』', '。）', '、」', '、』', '、）', '！』', '！」', '？』', '？」'];
-            
-            text.split('\n').forEach(p => {
-                if(!p) { lines.push(Array(chars).fill('')); return; }
-                let line = [];
-                const pChars = p.split('');
-                let i = 0;
-                while(i < pChars.length) {
-                    let char = pChars[i];
-                    if (i < pChars.length - 1) {
-                        const pair = char + pChars[i+1];
-                        if (compressionPairs.includes(pair)) { char = pair; i++; }
-                    }
-                    if (line.length === chars - 1) {
-                         if (noEnd.includes(char.charAt(0))) {
-                             lines.push(line); line = []; line.push(char); i++; continue;
-                         }
-                    }
-                    line.push(char); i++;
-                    if (line.length >= chars) {
-                        while (i < pChars.length) {
-                            let nextStartChar = pChars[i];
-                            let nextUnit = nextStartChar;
-                            let step = 1;
-                            if (i < pChars.length - 1) {
-                                const nextPair = nextStartChar + pChars[i+1];
-                                if (compressionPairs.includes(nextPair)) { nextUnit = nextPair; step = 2; }
-                            }
-                            if (noStart.includes(nextUnit.charAt(0))) {
-                                line.push(nextUnit); i += step;
-                            } else { break; }
-                        }
-                        lines.push(line); line = [];
-                    }
-                }
-                if(line.length > 0) lines.push(line);
-            });
-            return lines;
-        };
-
-        const renderApp = () => {
-            ui.charCount.textContent = ui.content.value.length;
-            const chars = state.charsPerLine;
-            const header = generateHeaderLines(ui.title.value, ui.class.value, ui.name.value, chars);
-            const body = parseBody(ui.content.value, chars);
-            const all = [...header, ...body];
-
-            ui.grid.innerHTML = '';
-            
-            const renderLen = Math.max(all.length, 10);
-            const cellSize = chars === 20 ? '2.8rem' : '3.6rem';
-            const fontSize = chars === 20 ? '1.6rem' : '2.0rem';
-
-            for(let i=0; i<renderLen; i++) {
-                const rowData = all[i] || [];
-                const lineDiv = document.createElement('div');
-                lineDiv.className = 'genko-line';
-                for(let j=0; j<chars; j++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'genko-cell';
-                    cell.style.width = cellSize;
-                    cell.style.height = cellSize;
-                    cell.style.fontSize = fontSize;
-                    cell.textContent = rowData[j] || '';
-                    if(j === chars - 1 && rowData.length > chars) { 
-                        const hang = document.createElement('div');
-                        hang.className = 'hanging-char';
-                        hang.textContent = rowData.slice(chars).join('');
-                        cell.appendChild(hang);
-                    }
-                    lineDiv.appendChild(cell);
-                }
-                ui.grid.appendChild(lineDiv);
-            }
-            
-            setTimeout(fitPaperToScreen, 50);
-        };
-
-        window.addEventListener('resize', () => {
-            fitPaperToScreen();
         });
+        window.addEventListener('resize', () => fitPaperToScreen());
 
-        // --- Actions ---
-
-        window.showSettings = () => {
-            Swal.fire({
-                html: `
-                    <div class="mb-3 fs-5 fw-bold"><ruby>用紙<rt>ようし</rt></ruby><ruby>設定<rt>せってい</rt></ruby></div>
-                    <div class="text-start p-3">
-                        <label class="form-label fw-bold"><ruby>文字<rt>もじ</rt></ruby>の<ruby>数<rt>かず</rt></ruby></label>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="radio" name="charSetting" id="char20" value="20" ${state.charsPerLine === 20 ? 'checked' : ''}>
-                            <label class="form-check-label" for="char20">
-                                20<ruby>文字<rt>もじ</rt></ruby> × 20<ruby>行<rt>ぎょう</rt></ruby> (400<ruby>字詰<rt>じづめ</rt></ruby>)
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="charSetting" id="char15" value="15" ${state.charsPerLine === 15 ? 'checked' : ''}>
-                            <label class="form-check-label" for="char15">
-                                15<ruby>文字<rt>もじ</rt></ruby> × 16<ruby>行<rt>ぎょう</rt></ruby> (<ruby>低学年<rt>ていがくねん</rt></ruby><ruby>用<rt>よう</rt></ruby>)
-                            </label>
-                        </div>
-                    </div>
-                `,
-                confirmButtonText: '<ruby>変更<rt>へんこう</rt></ruby>する',
-                showCancelButton: true,
-                cancelButtonText: 'キャンセル',
-                preConfirm: () => {
-                    const selected = document.querySelector('input[name="charSetting"]:checked').value;
-                    return parseInt(selected);
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    state.charsPerLine = result.value;
-                    renderApp();
-                    autoSave();
-                    Swal.fire({
-                        icon: 'success',
-                        html: '<div class="fs-5 fw-bold"><ruby>変更<rt>へんこう</rt></ruby>しました</div>',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                }
-            });
-        };
-
+        // 新規作成ボタン
         ui.btns.new.addEventListener('click', () => {
             Swal.fire({
                 html: '<div class="fs-4 fw-bold mb-3"><ruby>確認<rt>かくにん</rt></ruby></div>' +
@@ -691,24 +716,20 @@
                     state.currentDraftId = null;
                     ui.title.value = ''; ui.class.value = ''; ui.name.value = ''; ui.content.value = '';
                     renderApp();
-                    clearAutoSave();
+                    localStorage.removeItem(STORAGE_KEY);
                     Swal.fire({
                         icon: 'success',
                         html: '<div class="mb-2 fw-bold fs-4"><ruby>準備<rt>じゅんび</rt></ruby>OK!</div><ruby>新<rt>あたら</rt></ruby>しい<ruby>作文<rt>さくぶん</rt></ruby>を<ruby>始<rt>はじ</rt></ruby>めましょう',
-                        timer: 1500,
-                        showConfirmButton: false
+                        timer: 1500, showConfirmButton: false
                     });
                 }
             });
         });
 
+        // 保存ボタン
         ui.btns.save.addEventListener('click', () => {
             if(!ui.content.value) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'エラー',
-                    html: '<ruby>本文<rt>ほんぶん</rt></ruby>が<ruby>書<rt>か</rt></ruby>かれていません'
-                });
+                Swal.fire({ icon: 'warning', title: 'エラー', html: '<ruby>本文<rt>ほんぶん</rt></ruby>が<ruby>書<rt>か</rt></ruby>かれていません' });
                 return;
             }
 
@@ -721,6 +742,7 @@
                 content: ui.content.value
             };
 
+            // サーバー側関数 (saveOrUpdateDraft) を呼び出し
             google.script.run
                 .withSuccessHandler(res => {
                     setLoading(false);
@@ -729,25 +751,22 @@
                         autoSave();
                         Swal.fire({
                             icon: 'success',
-                            html: '<div class="fs-4 fw-bold mb-2"><ruby>保存<rt>ほぞん</rt></ruby><ruby>完了<rt>かんりょう</rt></ruby></div><ruby>作文<rt>さくぶん</rt></ruby>を<ruby>保存<rt>ほぞん</rt></ruby>しました！',
-                            timer: 2000,
-                            showConfirmButton: false
+                            html: `<div class="fs-4 fw-bold mb-2"><ruby>保存<rt>ほぞん</rt></ruby><ruby>完了<rt>かんりょう</rt></ruby></div>${res.message}`,
+                            timer: 2000, showConfirmButton: false
                         });
                     } else {
-                        Swal.fire('エラー', res.message, 'error');
+                        // ロック待ちタイムアウトなどのエラー表示
+                        Swal.fire({ icon: 'error', title: 'エラー', text: res.message });
                     }
                 })
                 .withFailureHandler(err => {
                     setLoading(false);
-                    Swal.fire({
-                        icon: 'error',
-                        title: '<ruby>通信<rt>つうしん</rt></ruby>エラー', 
-                        html: err.message
-                    });
+                    Swal.fire({ icon: 'error', title: '<ruby>通信<rt>つうしん</rt></ruby>エラー', html: 'インターネットがつながらないか、<br>エラーが起きました。' });
                 })
                 .saveOrUpdateDraft(data);
         });
 
+        // 読み込みボタン
         ui.btns.load.addEventListener('click', () => {
             setLoading(true);
             google.script.run
@@ -755,104 +774,78 @@
                     setLoading(false);
                     state.allDrafts = list;
                     if(list.length === 0) {
-                        Swal.fire({
-                            icon: 'info',
-                            html: '<div class="fs-5 fw-bold"><ruby>空<rt>から</rt></ruby>っぽ</div><ruby>保存<rt>ほぞん</rt></ruby>された<ruby>作文<rt>さくぶん</rt></ruby>はありません'
-                        });
+                        Swal.fire({ icon: 'info', html: '<div class="fs-5 fw-bold"><ruby>空<rt>から</rt></ruby>っぽ</div><ruby>保存<rt>ほぞん</rt></ruby>された<ruby>作文<rt>さくぶん</rt></ruby>はありません' });
                         return;
                     }
-                    showLoadModal();
+                    showLoadModal(); // 一覧ポップアップを表示
+                })
+                .withFailureHandler(() => {
+                    setLoading(false);
+                    Swal.fire({ icon: 'error', text: '読み込みに失敗しました' });
                 })
                 .getDraftList();
         });
 
+        // 読み込み一覧ポップアップ
         const showLoadModal = () => {
             Swal.fire({
                 html: `
                     <div class="fs-4 fw-bold mb-3"><ruby>保存<rt>ほぞん</rt></ruby>した<ruby>作文<rt>さくぶん</rt></ruby></div>
                     <div class="text-start">
                         <div class="mb-3 p-2 bg-light rounded">
-                            <label class="small text-muted mb-1"><ruby>検索<rt>けんさく</rt></ruby></label>
-                            <input type="text" id="search-keyword" class="form-control form-control-sm mb-2" placeholder="名前や題名でさがす...">
-                            <div class="d-flex gap-2 align-items-center">
-                                <input type="date" id="search-date-start" class="form-control form-control-sm">
-                                <span class="small">～</span>
-                                <input type="date" id="search-date-end" class="form-control form-control-sm">
-                            </div>
+                            <input type="text" id="search-keyword" class="form-control form-control-sm" placeholder="題名や名前でさがす...">
                         </div>
                         <div id="draft-list-container" style="max-height: 300px; overflow-y: auto;"></div>
                     </div>
                 `,
-                showConfirmButton: false,
-                showCloseButton: true,
-                width: '600px',
+                showConfirmButton: false, showCloseButton: true, width: '600px',
                 didOpen: () => {
                     const container = document.getElementById('draft-list-container');
-                    const inputKeyword = document.getElementById('search-keyword');
-                    const inputStart = document.getElementById('search-date-start');
-                    const inputEnd = document.getElementById('search-date-end');
+                    const input = document.getElementById('search-keyword');
 
-                    const updateList = () => {
-                        const keyword = inputKeyword.value.toLowerCase();
-                        const start = inputStart.value ? new Date(inputStart.value) : null;
-                        const end = inputEnd.value ? new Date(inputEnd.value) : null;
-                        if(end) end.setHours(23, 59, 59, 999);
-
-                        const filtered = state.allDrafts.filter(d => {
-                            const matchKey = (d.title + d.name).toLowerCase().includes(keyword);
-                            let matchDate = true;
-                            if(start || end) {
-                                const dDate = new Date(d.updatedAt); 
-                                if(start && dDate < start) matchDate = false;
-                                if(end && dDate > end) matchDate = false;
-                            }
-                            return matchKey && matchDate;
-                        });
-
-                        const displayList = filtered.slice(0, 20);
+                    const renderList = () => {
+                        const kw = input.value.toLowerCase();
+                        const filtered = state.allDrafts.filter(d => (d.title+d.name).toLowerCase().includes(kw));
                         
-                        if(displayList.length === 0) {
+                        if(filtered.length === 0) {
                             container.innerHTML = '<div class="text-center text-muted p-3">みつかりませんでした</div>';
                             return;
                         }
-
-                        container.innerHTML = displayList.map(item => `
+                        container.innerHTML = filtered.map(item => `
                             <div class="d-flex justify-content-between align-items-center p-2 border-bottom text-start">
                                 <div>
                                     <div class="fw-bold text-primary">${item.title || '<ruby>無題<rt>むだい</rt></ruby>'}</div>
-                                    <div class="small text-muted">${item.name || '<ruby>名無<rt>なな</rt></ruby>し'} - ${item.updatedAt}</div>
+                                    <div class="small text-muted">${item.name || '名前なし'} - ${item.updatedAt}</div>
                                 </div>
                                 <div>
-                                    <button class="btn btn-sm btn-success me-1 load-item" data-id="${item.id}"><ruby>開<rt>ひら</rt></ruby>く</button>
+                                    <button class="btn btn-sm btn-success me-1 load-item" data-id="${item.id}">開く</button>
                                     <button class="btn btn-sm btn-outline-danger del-item" data-id="${item.id}"><i class="bi bi-trash"></i></button>
                                 </div>
                             </div>
                         `).join('');
-                        
-                        if(filtered.length > 20) {
-                            const info = document.createElement('div');
-                            info.className = 'text-center small text-muted mt-2';
-                            info.innerText = `全${filtered.length}件中、新しい20件を表示しています`;
-                            container.appendChild(info);
-                        }
                     };
 
-                    [inputKeyword, inputStart, inputEnd].forEach(el => el.addEventListener('input', updateList));
-                    
-                    updateList();
+                    input.addEventListener('input', renderList);
+                    renderList(); // 初回表示
 
+                    // ボタンクリックイベント (Event Delegation)
                     container.addEventListener('click', (e) => {
                         const loadBtn = e.target.closest('.load-item');
                         const delBtn = e.target.closest('.del-item');
-                        if(loadBtn) loadDraft(loadBtn.dataset.id);
-                        else if(delBtn) deleteDraft(delBtn.dataset.id);
+                        
+                        if(loadBtn) {
+                            Swal.close();
+                            loadDraftData(loadBtn.dataset.id);
+                        } else if(delBtn) {
+                            deleteDraftData(delBtn.dataset.id);
+                        }
                     });
                 }
             });
         };
 
-        const loadDraft = (id) => {
-            Swal.close();
+        // データ個別読み込み処理
+        const loadDraftData = (id) => {
             setLoading(true);
             google.script.run.withSuccessHandler(res => {
                 setLoading(false);
@@ -865,51 +858,76 @@
                     ui.content.value = d.content;
                     renderApp();
                     autoSave();
-                    const Toast = Swal.mixin({
-                        toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
-                    });
-                    Toast.fire({ 
-                        icon: 'success', 
-                        html: '<span class="fw-bold"><ruby>読<rt>よ</rt></ruby>み<ruby>込<rt>こ</rt></ruby>みました</span>' 
-                    });
+                    
+                    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                    Toast.fire({ icon: 'success', html: '<span class="fw-bold"><ruby>読<rt>よ</rt></ruby>み<ruby>込<rt>こ</rt></ruby>みました</span>' });
+                } else {
+                    Swal.fire('エラー', res.message, 'error');
                 }
             }).loadDraft(id);
         };
 
-        const deleteDraft = (id) => {
+        // データ削除処理
+        const deleteDraftData = (id) => {
             Swal.fire({
-                html: '<div class="fs-4 fw-bold mb-3"><ruby>本当<rt>ほんとう</rt></ruby>に<ruby>消<rt>け</rt></ruby>しますか？</div>' + 
-                      'このそうさは、もとに もどせません。',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                confirmButtonText: '<ruby>削除<rt>さくじょ</rt></ruby>する',
-                cancelButtonText: 'やめる'
+                html: '<div class="fs-4 fw-bold mb-3">本当に消しますか？</div>ゴミ箱へ移動します。',
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#d33', confirmButtonText: '消す', cancelButtonText: 'やめる'
             }).then((result) => {
                 if (result.isConfirmed) {
                     setLoading(true);
                     google.script.run.withSuccessHandler(res => {
                         setLoading(false);
                         if(res.status === 'success') {
-                            Swal.fire({
-                                icon: 'success',
-                                html: '<div class="fs-4 fw-bold">削除完了</div>' + res.message
-                            });
+                            Swal.fire({ icon: 'success', title: '削除しました', timer: 1500, showConfirmButton: false });
+                            // リストから消して、もし現在開いているものならクリアする
                             state.allDrafts = state.allDrafts.filter(d => d.id !== id);
-                            
                             if(state.currentDraftId === id) {
                                 state.currentDraftId = null;
                                 ui.title.value = ''; ui.content.value = '';
                                 renderApp();
-                                clearAutoSave();
+                                localStorage.removeItem(STORAGE_KEY);
                             }
+                        } else {
+                            Swal.fire('エラー', res.message, 'error');
                         }
                     }).deleteDraft(id);
                 }
             });
         };
 
+        // 設定ボタン（文字数変更）
+        window.showSettings = () => {
+            Swal.fire({
+                html: `
+                    <div class="mb-3 fs-5 fw-bold"><ruby>用紙<rt>ようし</rt></ruby><ruby>設定<rt>せってい</rt></ruby></div>
+                    <div class="text-start p-3">
+                        <label class="form-label fw-bold"><ruby>文字<rt>もじ</rt></ruby>の<ruby>数<rt>かず</rt></ruby></label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="charSetting" id="char20" value="20" ${state.charsPerLine === 20 ? 'checked' : ''}>
+                            <label class="form-check-label" for="char20">20<ruby>文字<rt>もじ</rt></ruby> × 20<ruby>行<rt>ぎょう</rt></ruby> (高学年)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="charSetting" id="char15" value="15" ${state.charsPerLine === 15 ? 'checked' : ''}>
+                            <label class="form-check-label" for="char15">15<ruby>文字<rt>もじ</rt></ruby> × 16<ruby>行<rt>ぎょう</rt></ruby> (低学年)</label>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: '変更する', showCancelButton: true, cancelButtonText: 'キャンセル',
+                preConfirm: () => parseInt(document.querySelector('input[name="charSetting"]:checked').value)
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    state.charsPerLine = result.value;
+                    renderApp();
+                    autoSave();
+                    Swal.fire({ icon: 'success', title: '変更しました', timer: 1000, showConfirmButton: false });
+                }
+            });
+        };
+
+        // 印刷ボタン
         ui.btns.print.addEventListener('click', () => {
+            // 印刷用HTMLを作成
             const area = ui.printArea;
             area.innerHTML = '';
             
@@ -929,9 +947,11 @@
                 const pageDiv = document.createElement('div');
                 pageDiv.className = 'print-page';
                 
+                // グリッドレイアウト（左ページ、魚尾、右ページ）
                 const gridLayout = document.createElement('div');
                 gridLayout.className = 'print-layout-grid';
 
+                // 右半分
                 const rightGrid = document.createElement('div');
                 rightGrid.className = 'print-half-grid right-side';
                 for(let i=0; i < halfLines; i++) {
@@ -954,6 +974,7 @@
                     rightGrid.appendChild(lineDiv);
                 }
 
+                // 真ん中（魚尾）
                 const gyobiArea = document.createElement('div');
                 gyobiArea.className = 'print-gyobi-area';
                 gyobiArea.innerHTML = `
@@ -964,6 +985,7 @@
                     </div>
                 `;
 
+                // 左半分
                 const leftGrid = document.createElement('div');
                 leftGrid.className = 'print-half-grid left-side';
                 for(let i=halfLines; i < linesPerPage; i++) {
@@ -989,23 +1011,17 @@
                 gridLayout.appendChild(leftGrid);
                 gridLayout.appendChild(gyobiArea);
                 gridLayout.appendChild(rightGrid);
-                
                 pageDiv.appendChild(gridLayout);
                 area.appendChild(pageDiv);
             }
 
+            // 描画を待ってから印刷ダイアログ表示
             setTimeout(() => window.print(), 500);
         });
 
-        [ui.title, ui.class, ui.name, ui.content].forEach(el => {
-            el.addEventListener('input', () => {
-                renderApp();
-                autoSave();
-            });
-        });
-
-        tryRestore();
-        renderApp();
+        // アプリ開始処理
+        tryRestore(); // 前回データの復元
+        renderApp();  // 描画
     });
     </script>
 </body>
